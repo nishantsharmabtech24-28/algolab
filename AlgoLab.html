@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>AlgoLab – Sorting Algorithm Visualizer & Analyzer</title>
+  <style>
+:root {
+  --bg: #0f172a;
+  --panel: #1e293b;
+  --text: #e2e8f0;
+  --muted: #94a3b8;
+  --accent: #38bdf8;
+  --bar: #475569;
+  --cmp: #facc15;
+  --write: #f87171;
+  --done: #4ade80;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+}
+header { text-align: center; padding: 28px 16px 8px; }
+header h1 { margin: 0; font-size: 2rem; color: var(--accent); letter-spacing: 1px; }
+header p { margin: 6px 0 0; color: var(--muted); }
+main { max-width: 980px; margin: 0 auto; padding: 16px; display: grid; gap: 16px; }
+.panel { background: var(--panel); border-radius: 12px; padding: 16px; }
+.panel h2 { margin: 0 0 10px; font-size: 1.05rem; }
+.muted { color: var(--muted); font-size: .9rem; }
+
+.controls { display: flex; flex-wrap: wrap; gap: 16px; align-items: end; }
+.controls label { display: flex; flex-direction: column; gap: 6px; font-size: .85rem; color: var(--muted); }
+select, button {
+  font: inherit; padding: 8px 12px; border-radius: 8px;
+  border: 1px solid #334155; background: #0f172a; color: var(--text); cursor: pointer;
+}
+button:hover { border-color: var(--accent); }
+button.primary { background: var(--accent); color: #082f49; border-color: var(--accent); font-weight: 600; }
+button:disabled { opacity: .5; cursor: not-allowed; }
+.buttons { display: flex; gap: 8px; margin-left: auto; }
+
+#bars {
+  display: flex; align-items: flex-end; gap: 2px;
+  height: 280px; padding: 8px; background: #0b1220; border-radius: 8px;
+}
+.bar { flex: 1; background: var(--bar); border-radius: 2px 2px 0 0; min-width: 2px; }
+.bar.cmp { background: var(--cmp); }
+.bar.write { background: var(--write); }
+.bar.done { background: var(--done); }
+
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-top: 14px; text-align: center; }
+.stats div { background: #0f172a; padding: 10px; border-radius: 8px; }
+.stats span { display: block; font-size: 1.4rem; font-weight: 700; color: var(--accent); }
+.stats small { color: var(--muted); }
+
+table { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: .9rem; }
+th, td { padding: 8px 10px; text-align: left; border-bottom: 1px solid #334155; }
+th { color: var(--muted); font-weight: 600; }
+.relbar { height: 10px; border-radius: 5px; background: var(--accent); min-width: 3px; }
+td.fastest { color: var(--done); font-weight: 700; }
+
+footer { text-align: center; color: var(--muted); padding: 24px; font-size: .85rem; }
+@media (max-width: 600px) { .buttons { margin-left: 0; } #bars { height: 200px; } }
+
+</style>
+</head>
+<body>
+  <header>
+    <h1>AlgoLab</h1>
+    <p>Sorting Algorithm Visualizer &amp; Complexity Analyzer &middot; DAA Mini Project</p>
+  </header>
+
+  <main>
+    <section class="panel controls">
+      <label>Algorithm
+        <select id="algo"></select>
+      </label>
+      <label>Input type
+        <select id="type">
+          <option value="random">Random</option>
+          <option value="nearly">Nearly sorted</option>
+          <option value="reversed">Reversed (worst case)</option>
+          <option value="sorted">Sorted (best case)</option>
+        </select>
+      </label>
+      <label>Size: <b id="sizeVal">40</b>
+        <input id="size" type="range" min="10" max="120" value="40" />
+      </label>
+      <label>Speed
+        <input id="speed" type="range" min="1" max="100" value="60" />
+      </label>
+      <div class="buttons">
+        <button id="generate">New array</button>
+        <button id="start" class="primary">Start</button>
+        <button id="stop">Stop</button>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div id="bars" aria-label="Array visualization"></div>
+      <div class="stats">
+        <div><span id="sComp">0</span><small>comparisons</small></div>
+        <div><span id="sWrite">0</span><small>array writes</small></div>
+        <div><span id="sTime">0.00</span><small>ms (CPU time)</small></div>
+        <div><span id="sStatus">Ready</span><small>status</small></div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Complexity of selected algorithm</h2>
+      <table id="info">
+        <thead><tr><th>Paradigm</th><th>Best</th><th>Average</th><th>Worst</th><th>Space</th><th>Stable</th></tr></thead>
+        <tbody><tr></tr></tbody>
+      </table>
+    </section>
+
+    <section class="panel">
+      <h2>Benchmark: all algorithms on the same input</h2>
+      <p class="muted">Runs every algorithm on an identical copy of the current array and compares the number of operations. Comparisons are machine-independent, which makes them a better measure than time.</p>
+      <button id="bench" class="primary">Run benchmark</button>
+      <table id="benchTable">
+        <thead><tr><th>Algorithm</th><th>Comparisons</th><th>Writes</th><th>Time (ms)</th><th>Relative comparisons</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </section>
+  </main>
+
+  <footer>Design &amp; Analysis of Algorithms &middot; Mini Project</footer>
+
+  <script>
+/**
+ * AlgoLab - sorting algorithms written as generators.
+ * Each algorithm sorts the array IN PLACE and yields events so the UI can
+ * animate it and so we can count operations (machine-independent analysis):
+ *   { t: 'cmp',   i, j }   -> two elements were compared
+ *   { t: 'write', idx: [] } -> one or more array positions were written
+ */
+(function (root) {
+  const cmp = (i, j) => ({ t: 'cmp', i, j });
+  const wr = (...idx) => ({ t: 'write', idx });
+
+  // ---------- 1. Bubble Sort : O(n^2) ----------
+  function* bubble(a) {
+    const n = a.length;
+    for (let i = 0; i < n - 1; i++) {
+      let swapped = false;
+      for (let j = 0; j < n - 1 - i; j++) {
+        yield cmp(j, j + 1);
+        if (a[j] > a[j + 1]) {
+          [a[j], a[j + 1]] = [a[j + 1], a[j]];
+          swapped = true;
+          yield wr(j, j + 1);
+        }
+      }
+      if (!swapped) break; // already sorted -> best case O(n)
+    }
+  }
+
+  // ---------- 2. Selection Sort : O(n^2) ----------
+  function* selection(a) {
+    const n = a.length;
+    for (let i = 0; i < n - 1; i++) {
+      let min = i;
+      for (let j = i + 1; j < n; j++) {
+        yield cmp(j, min);
+        if (a[j] < a[min]) min = j;
+      }
+      if (min !== i) {
+        [a[i], a[min]] = [a[min], a[i]];
+        yield wr(i, min);
+      }
+    }
+  }
+
+  // ---------- 3. Insertion Sort : O(n^2), best O(n) ----------
+  function* insertion(a) {
+    for (let i = 1; i < a.length; i++) {
+      const key = a[i];
+      let j = i - 1;
+      while (j >= 0) {
+        yield cmp(j, i);
+        if (a[j] > key) {
+          a[j + 1] = a[j];
+          yield wr(j + 1);
+          j--;
+        } else break;
+      }
+      a[j + 1] = key;
+      yield wr(j + 1);
+    }
+  }
+
+  // ---------- 4. Merge Sort : O(n log n) (Divide & Conquer) ----------
+  function* mergeSortRec(a, l, r, aux) {
+    if (l >= r) return;
+    const m = (l + r) >> 1;
+    yield* mergeSortRec(a, l, m, aux);
+    yield* mergeSortRec(a, m + 1, r, aux);
+    for (let x = l; x <= r; x++) aux[x] = a[x];
+    let i = l, j = m + 1, k = l;
+    while (i <= m && j <= r) {
+      yield cmp(i, j);
+      if (aux[i] <= aux[j]) a[k] = aux[i++];
+      else a[k] = aux[j++];
+      yield wr(k++);
+    }
+    while (i <= m) { a[k] = aux[i++]; yield wr(k++); }
+    while (j <= r) { a[k] = aux[j++]; yield wr(k++); }
+  }
+  function* merge(a) {
+    yield* mergeSortRec(a, 0, a.length - 1, a.slice());
+  }
+
+  // ---------- 5. Quick Sort : avg O(n log n), worst O(n^2) ----------
+  // Iterative (explicit stack) so worst-case O(n) recursion depth does not
+  // create a deep chain of nested generators.
+  function* quick(a) {
+    const stack = [[0, a.length - 1]];
+    while (stack.length) {
+      const [lo, hi] = stack.pop();
+      if (lo >= hi) continue;
+      const pivot = a[hi];
+      let i = lo;
+      for (let j = lo; j < hi; j++) {
+        yield cmp(j, hi);
+        if (a[j] < pivot) {
+          [a[i], a[j]] = [a[j], a[i]];
+          yield wr(i, j);
+          i++;
+        }
+      }
+      [a[i], a[hi]] = [a[hi], a[i]];
+      yield wr(i, hi);
+      stack.push([i + 1, hi], [lo, i - 1]);
+    }
+  }
+
+  // ---------- 6. Heap Sort : O(n log n) ----------
+  function* siftDown(a, i, n) {
+    while (true) {
+      let largest = i;
+      const l = 2 * i + 1, r = 2 * i + 2;
+      if (l < n) { yield cmp(l, largest); if (a[l] > a[largest]) largest = l; }
+      if (r < n) { yield cmp(r, largest); if (a[r] > a[largest]) largest = r; }
+      if (largest === i) return;
+      [a[i], a[largest]] = [a[largest], a[i]];
+      yield wr(i, largest);
+      i = largest;
+    }
+  }
+  function* heap(a) {
+    const n = a.length;
+    for (let i = (n >> 1) - 1; i >= 0; i--) yield* siftDown(a, i, n);
+    for (let end = n - 1; end > 0; end--) {
+      [a[0], a[end]] = [a[end], a[0]];
+      yield wr(0, end);
+      yield* siftDown(a, 0, end);
+    }
+  }
+
+  // ---------- Metadata used by the UI / README ----------
+  const ALGORITHMS = {
+    bubble:    { name: 'Bubble Sort',    fn: bubble,    best: 'O(n)',       avg: 'O(n²)',      worst: 'O(n²)',      space: 'O(1)',    stable: 'Yes', paradigm: 'Brute force' },
+    selection: { name: 'Selection Sort', fn: selection, best: 'O(n²)',      avg: 'O(n²)',      worst: 'O(n²)',      space: 'O(1)',    stable: 'No',  paradigm: 'Brute force' },
+    insertion: { name: 'Insertion Sort', fn: insertion, best: 'O(n)',       avg: 'O(n²)',      worst: 'O(n²)',      space: 'O(1)',    stable: 'Yes', paradigm: 'Decrease & conquer' },
+    merge:     { name: 'Merge Sort',     fn: merge,     best: 'O(n log n)', avg: 'O(n log n)', worst: 'O(n log n)', space: 'O(n)',    stable: 'Yes', paradigm: 'Divide & conquer' },
+    quick:     { name: 'Quick Sort',     fn: quick,     best: 'O(n log n)', avg: 'O(n log n)', worst: 'O(n²)',      space: 'O(log n)', stable: 'No', paradigm: 'Divide & conquer' },
+    heap:      { name: 'Heap Sort',      fn: heap,      best: 'O(n log n)', avg: 'O(n log n)', worst: 'O(n log n)', space: 'O(1)',    stable: 'No',  paradigm: 'Transform & conquer' },
+  };
+
+  /** Run an algorithm to completion on a copy of `input`; returns stats + sorted array. */
+  function run(key, input) {
+    const a = input.slice();
+    let comparisons = 0, writes = 0;
+    const t0 = (typeof performance !== 'undefined' ? performance : Date).now();
+    for (const ev of ALGORITHMS[key].fn(a)) {
+      if (ev.t === 'cmp') comparisons++;
+      else writes += ev.idx.length;
+    }
+    const ms = (typeof performance !== 'undefined' ? performance : Date).now() - t0;
+    return { comparisons, writes, ms, sorted: a };
+  }
+
+  /** Generate test data: random | sorted | reversed | nearly */
+  function makeArray(n, type) {
+    const a = Array.from({ length: n }, (_, i) => i + 1);
+    if (type === 'sorted') return a;
+    if (type === 'reversed') return a.reverse();
+    // shuffle (Fisher-Yates)
+    for (let i = n - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    if (type === 'nearly') {
+      a.sort((x, y) => x - y);
+      for (let k = 0; k < Math.max(1, n / 20); k++) {
+        const i = Math.floor(Math.random() * n), j = Math.floor(Math.random() * n);
+        [a[i], a[j]] = [a[j], a[i]];
+      }
+    }
+    return a;
+  }
+
+  const api = { ALGORITHMS, run, makeArray };
+  if (typeof module !== 'undefined' && module.exports) module.exports = api;
+  else root.AlgoLab = api;
+})(typeof window !== 'undefined' ? window : globalThis);
+
+</script>
+  <script>
+// UI logic: connects the generator-based algorithms to the DOM.
+const { ALGORITHMS, run, makeArray } = window.AlgoLab;
+
+const $ = (id) => document.getElementById(id);
+const barsEl = $('bars');
+let array = [];
+let running = false;
+let stopRequested = false;
+
+// ---- populate algorithm dropdown ----
+for (const [key, a] of Object.entries(ALGORITHMS)) {
+  const o = document.createElement('option');
+  o.value = key; o.textContent = a.name;
+  $('algo').appendChild(o);
+}
+
+function render(highlight = {}) {
+  const max = Math.max(...array, 1);
+  if (barsEl.children.length !== array.length) {
+    barsEl.innerHTML = '';
+    array.forEach(() => { const d = document.createElement('div'); d.className = 'bar'; barsEl.appendChild(d); });
+  }
+  [...barsEl.children].forEach((el, i) => {
+    el.style.height = (array[i] / max) * 100 + '%';
+    el.className = 'bar' + (highlight[i] ? ' ' + highlight[i] : '');
+  });
+}
+
+function showInfo() {
+  const a = ALGORITHMS[$('algo').value];
+  $('info').querySelector('tbody').innerHTML =
+    `<tr><td>${a.paradigm}</td><td>${a.best}</td><td>${a.avg}</td><td>${a.worst}</td><td>${a.space}</td><td>${a.stable}</td></tr>`;
+}
+
+function newArray() {
+  array = makeArray(+$('size').value, $('type').value);
+  $('sComp').textContent = 0; $('sWrite').textContent = 0;
+  $('sTime').textContent = '0.00'; $('sStatus').textContent = 'Ready';
+  render();
+}
+
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const delay = () => Math.round(200 / Math.pow(1.06, +$('speed').value)); // 1..100 -> slow..fast
+
+async function start() {
+  if (running) return;
+  running = true; stopRequested = false;
+  $('start').disabled = true; $('generate').disabled = true;
+  $('sStatus').textContent = 'Sorting…';
+  let comparisons = 0, writes = 0;
+  const t0 = performance.now();
+  const a = array.slice();
+  const gen = ALGORITHMS[$('algo').value].fn(a);
+
+  // Sort a working copy; display it as the generator mutates it.
+  array = a;
+  for (const ev of gen) {
+    if (stopRequested) break;
+    const hl = {};
+    if (ev.t === 'cmp') { comparisons++; hl[ev.i] = 'cmp'; hl[ev.j] = 'cmp'; }
+    else { writes += ev.idx.length; ev.idx.forEach((i) => (hl[i] = 'write')); }
+    render(hl);
+    $('sComp').textContent = comparisons;
+    $('sWrite').textContent = writes;
+    $('sTime').textContent = (performance.now() - t0).toFixed(2);
+    await sleep(delay());
+  }
+
+  if (stopRequested) {
+    $('sStatus').textContent = 'Stopped';
+  } else {
+    const all = {};
+    array.forEach((_, i) => (all[i] = 'done'));
+    render(all);
+    $('sStatus').textContent = 'Sorted ✔';
+  }
+  running = false;
+  $('start').disabled = false; $('generate').disabled = false;
+}
+
+function benchmark() {
+  const base = array.slice();
+  const results = Object.keys(ALGORITHMS).map((k) => ({ k, ...run(k, base) }));
+  const minC = Math.min(...results.map((r) => r.comparisons)) || 1;
+  const maxC = Math.max(...results.map((r) => r.comparisons)) || 1;
+  const tbody = $('benchTable').querySelector('tbody');
+  tbody.innerHTML = '';
+  results.sort((a, b) => a.comparisons - b.comparisons).forEach((r) => {
+    const tr = document.createElement('tr');
+    const fastest = r.comparisons === minC ? ' class="fastest"' : '';
+    tr.innerHTML =
+      `<td${fastest}>${ALGORITHMS[r.k].name}</td>` +
+      `<td>${r.comparisons.toLocaleString()}</td>` +
+      `<td>${r.writes.toLocaleString()}</td>` +
+      `<td>${r.ms.toFixed(2)}</td>` +
+      `<td><div class="relbar" style="width:${Math.max(1, (r.comparisons / maxC) * 100)}%"></div></td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+$('generate').onclick = newArray;
+$('start').onclick = start;
+$('stop').onclick = () => (stopRequested = true);
+$('bench').onclick = benchmark;
+$('algo').onchange = showInfo;
+$('type').onchange = () => !running && newArray();
+$('size').oninput = () => { $('sizeVal').textContent = $('size').value; if (!running) newArray(); };
+
+showInfo();
+newArray();
+
+</script>
+</body>
+</html>
